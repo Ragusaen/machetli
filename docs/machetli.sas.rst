@@ -1,5 +1,5 @@
 ============================================
-:mod:`machetli.sas` --- SAS\ :sup:`+` Files
+:mod:`machetli.sas` --- SAS :sup:`+` Files
 ============================================
 
 .. automodule:: machetli.sas

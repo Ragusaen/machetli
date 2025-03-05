@@ -5,13 +5,13 @@ how successors of a *state* should be constructed. This module contains the
 abstract base class :class:`SuccessorGenerator <SuccessorGenerator>` and some
 additional basic functionality. The concrete implementation of a successor
 generator depends on the instances it should work on. Some concrete successor
-generators for PDDL and SAS\ :sup:`+` files are implemented in the packages
+generators for PDDL and SAS :sup:`+` files are implemented in the packages
 :mod:`machetli.pddl` and :mod:`machetli.sas`. More can be added by
 :ref:`extending Machetli<extending-machetli>`.
 """
 
 import random
-
+from typing import Dict, List
 
 RNG = random.Random(2024)
 """
@@ -22,7 +22,7 @@ reproducible.
 
 
 class Successor:
-    def __init__(self, state, msg):
+    def __init__(self, state: Dict[str, 'SASTask'], msg: str):
         self.state = state
         self.change_msg = msg
 
@@ -48,16 +48,16 @@ class ChainingSuccessorGenerator(SuccessorGenerator):
 
     :param nested_generators: list of other generators that should be chained.
     """
-    def __init__(self, nested_generators):
+    def __init__(self, nested_generators: List[SuccessorGenerator]):
         self.nested_generators = nested_generators
     
-    def get_successors(self, state):
+    def get_successors(self, state: Dict[str,'SASTask']):
         for g in self.nested_generators:
             for s in g.get_successors(state):
                 yield s
 
 
-def make_single_successor_generator(generators):
+def make_single_successor_generator(generators: List[SuccessorGenerator]) -> ChainingSuccessorGenerator:
     """
     :param nested_generators: a single :class:`SuccessorGenerator` or list of
         :class:`SuccessorGenerators<SuccessorGenerator>`".

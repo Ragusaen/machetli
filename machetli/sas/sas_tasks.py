@@ -1,5 +1,8 @@
 # This File was taken from Fast Downward.
 
+from typing import Any, List, Tuple, Union
+from io import TextIOWrapper
+
 SAS_FILE_VERSION = 3
 
 DEBUG = False
@@ -13,8 +16,8 @@ class SASTask:
     generally be sorted and mention each variable at most once. See
     the validate methods for details."""
 
-    def __init__(self, variables, mutexes, init, goal,
-                 operators, axioms, metric):
+    def __init__(self, variables: 'SASVariables', mutexes: list['SASMutexGroup'], init: 'SASInit', goal: 'SASGoal',
+                 operators: list['SASOperator'], axioms: list['SASAxiom'], metric: bool):
         self.variables = variables
         self.mutexes = mutexes
         self.init = init
@@ -77,7 +80,7 @@ class SASTask:
             axiom.dump()
         print("metric: %s" % self.metric)
 
-    def output(self, stream):
+    def output(self, stream: TextIOWrapper):
         print("begin_version", file=stream)
         print(SAS_FILE_VERSION, file=stream)
         print("end_version", file=stream)
@@ -109,9 +112,8 @@ class SASTask:
             task_size += axiom.get_encoding_size()
         return task_size
 
-
 class SASVariables:
-    def __init__(self, ranges, axiom_layers, value_names):
+    def __init__(self, ranges: List[int], axiom_layers: List[int], value_names: List[List[str]]):
         self.ranges = ranges
         self.axiom_layers = axiom_layers
         self.value_names = value_names
@@ -133,13 +135,13 @@ class SASVariables:
             if layer != -1:
                 assert var_range == 2
 
-    def validate_fact(self, fact):
+    def validate_fact(self, fact: Tuple[int, int]):
         """Assert that fact is a valid (var, value) pair."""
         var, value = fact
         assert 0 <= var < len(self.ranges)
         assert 0 <= value < self.ranges[var]
 
-    def validate_condition(self, condition):
+    def validate_condition(self, condition: List[Union[Any, Tuple[int, int]]]):
         """Assert that the condition (list of facts) is sorted, mentions each
         variable at most once, and only consists of valid facts."""
         last_var = -1
@@ -157,7 +159,7 @@ class SASVariables:
                 axiom_str = ""
             print("v%d in {%s}%s" % (var, list(range(rang)), axiom_str))
 
-    def output(self, stream):
+    def output(self, stream: TextIOWrapper):
         print(len(self.ranges), file=stream)
         for var, (rang, axiom_layer, values) in enumerate(zip(
                 self.ranges, self.axiom_layers, self.value_names)):
@@ -177,10 +179,10 @@ class SASVariables:
 
 
 class SASMutexGroup:
-    def __init__(self, facts):
+    def __init__(self, facts: List[Union[Any, Tuple[int, int]]]):
         self.facts = sorted(facts)
 
-    def validate(self, variables):
+    def validate(self, variables: SASVariables):
         """Assert that the facts in the mutex group are sorted and unique
         and that they are all valid."""
         for fact in self.facts:
@@ -191,7 +193,7 @@ class SASMutexGroup:
         for var, val in self.facts:
             print("v%d: %d" % (var, val))
 
-    def output(self, stream):
+    def output(self, stream: TextIOWrapper):
         print("begin_mutex_group", file=stream)
         print(len(self.facts), file=stream)
         for var, val in self.facts:
@@ -203,10 +205,10 @@ class SASMutexGroup:
 
 
 class SASInit:
-    def __init__(self, values):
+    def __init__(self, values: List[int]):
         self.values = values
 
-    def validate(self, variables):
+    def validate(self, variables: SASVariables):
         """Validate initial state.
 
         Assert that the initial state contains the correct number of
@@ -221,7 +223,7 @@ class SASInit:
         for var, val in enumerate(self.values):
             print("v%d: %d" % (var, val))
 
-    def output(self, stream):
+    def output(self, stream: TextIOWrapper):
         print("begin_state", file=stream)
         for val in self.values:
             print(val, file=stream)
@@ -229,10 +231,10 @@ class SASInit:
 
 
 class SASGoal:
-    def __init__(self, pairs):
+    def __init__(self, pairs: List[Tuple[int, int]]):
         self.pairs = sorted(pairs)
 
-    def validate(self, variables):
+    def validate(self, variables: SASVariables):
         """Assert that the goal is nonempty and a valid condition."""
         assert self.pairs
         variables.validate_condition(self.pairs)
@@ -241,7 +243,7 @@ class SASGoal:
         for var, val in self.pairs:
             print("v%d: %d" % (var, val))
 
-    def output(self, stream):
+    def output(self, stream: TextIOWrapper):
         print("begin_goal", file=stream)
         print(len(self.pairs), file=stream)
         for var, val in self.pairs:
@@ -253,13 +255,14 @@ class SASGoal:
 
 
 class SASOperator:
-    def __init__(self, name, prevail, pre_post, cost):
+    def __init__(self, name: str, prevail: List[Union[Any, Tuple[int, int]]], pre_post: List[Tuple[int, int, int, List[Any]]], cost: int):
+        # pre_post: [(var, pre, post, [cond]), ...]
         self.name = name
         self.prevail = sorted(prevail)
         self.pre_post = self._canonical_pre_post(pre_post)
         self.cost = cost
 
-    def _canonical_pre_post(self, pre_post):
+    def _canonical_pre_post(self, pre_post: List[Tuple[int, int, int, List[Any]]]) -> List[Tuple[int, int, int, List[Any]]]:
         # Return a sorted and uniquified version of pre_post. We would
         # like to just use sorted(set(pre_post)), but this fails because
         # the effect conditions are a list and hence not hashable.
@@ -274,7 +277,7 @@ class SASOperator:
         pre_post = list(map(listify, pre_post))
         return pre_post
 
-    def validate(self, variables):
+    def validate(self, variables: SASVariables):
         """Validate the operator.
 
         Assert that
@@ -358,7 +361,7 @@ class SASOperator:
                 cond_str = ""
             print("  v%d: %d -> %d%s" % (var, pre, post, cond_str))
 
-    def output(self, stream):
+    def output(self, stream: TextIOWrapper):
         print("begin_operator", file=stream)
         print(self.name[1:-1], file=stream)
         print(len(self.prevail), file=stream)

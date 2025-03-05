@@ -4,7 +4,7 @@
 Extending Machetli
 ==================
 
-Machetli comes with some existing methods to simplify PDDL and SAS\ :sup:`+`
+Machetli comes with some existing methods to simplify PDDL and SAS :sup:`+`
 tasks. If those are not sufficient for your case or if your instances are in a
 different format, you can easily extend Machetli.
 

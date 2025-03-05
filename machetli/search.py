@@ -3,11 +3,14 @@ from pathlib import Path
 
 from machetli.environments import LocalEnvironment, EvaluationTask
 from machetli.errors import SubmissionError, PollingError
-from machetli.successors import make_single_successor_generator
+from machetli.successors import SuccessorGenerator, make_single_successor_generator
 from machetli.tools import batched, configure_logging
+from machetli.sas.sas_tasks import SASTask
+from pathlib._local import PosixPath
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 
-def search(initial_state, successor_generator, evaluator_path, environment=None, deterministic=False):
+def search(initial_state: Dict[str, SASTask], successor_generator: List[SuccessorGenerator], evaluator_path: PosixPath, environment: Optional[LocalEnvironment]=None, deterministic: bool=False) -> Dict[str, SASTask]:
     """Start a Machetli search and return the resulting state.
 
     The search is started from the *initial state* and *successor generators*
@@ -116,7 +119,7 @@ def search(initial_state, successor_generator, evaluator_path, environment=None,
             return current_state
 
 
-def _get_improving_successor(evaluator_path, successors, environment, deterministic):
+def _get_improving_successor(evaluator_path: PosixPath, successors: Iterator[Any], environment: LocalEnvironment, deterministic: bool) -> Union[Tuple[None, str], Tuple[Dict[str, SASTask], str]]:
     tasks_out_of_resources = set()
     for batch in batched(successors, environment.batch_size):
         task_ids = list(range(len(batch)))

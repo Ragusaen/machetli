@@ -1,5 +1,5 @@
 """
-This package allows transforming SAS\ :sup:`+` input files. Usually, in
+This package allows transforming SAS :sup:`+` input files. Usually, in
 a Machetli script you will use it in the following way:
 
 .. code-block:: python
@@ -8,8 +8,8 @@ a Machetli script you will use it in the following way:
     initial_state = sas.generate_initial_state("path/to/problem.sas")
     successor_generators = [sas.RemoveOperators(), ...]
 
-You can then start your Machetli search using the initial SAS\ :sup:`+`
-problem ``initial_state`` and a set of SAS\ :sup:`+` successor
+You can then start your Machetli search using the initial SAS :sup:`+`
+problem ``initial_state`` and a set of SAS :sup:`+` successor
 generators ``successor_generators``. Finally, write out your result
 using
 

@@ -13,15 +13,16 @@ from machetli.sas.sas_tasks import SASTask, SASVariables, SASMutexGroup, \
 from machetli import tools
 from machetli.evaluator import EXIT_CODE_CRITICAL, EXIT_CODE_BEHAVIOR_PRESENT, \
     EXIT_CODE_BEHAVIOR_NOT_PRESENT
+from typing import Any, Iterator, List, Generator
 
 
-def generate_initial_state(sas_file: str) -> dict:
+def  generate_initial_state(sas_file: str) -> dict[str, SASTask]:
     r"""
-    Parse the SAS\ :sup:`+` task defined in the SAS\ :sup:`+` file
+    Parse the SAS :sup:`+` task defined in the SAS :sup:`+` file
     `sas_file` and return an initial state containing the parsed
-    SAS\ :sup:`+` task.
+    SAS :sup:`+` task.
 
-    :return: a dictionary pointing to the SAS\ :sup:`+` task specified
+    :return: a dictionary pointing to the SAS :sup:`+` task specified
              in the file `sas_file`.
     """
     return {
@@ -30,9 +31,9 @@ def generate_initial_state(sas_file: str) -> dict:
 
 
 @contextlib.contextmanager
-def temporary_file(state: dict) -> str:
+def temporary_file(state: dict) -> Generator[str, Any, None]:
     r"""
-    Context manager that generates a temporary SAS\ :sup:`+` file
+    Context manager that generates a temporary SAS :sup:`+` file
     containing the task stored in the `state` dictionary. After the
     context is left, the generated file is deleted.
 
@@ -62,7 +63,7 @@ def _run_evaluator_on_sas_file(evaluate, sas_filename):
 def run_evaluator(evaluate):
     r"""
     Load the state passed to the script via its command line arguments, then run
-    the given function *evaluate* on the SAS\ :sup:`+` file encoded in the
+    the given function *evaluate* on the SAS :sup:`+` file encoded in the
     state, and exit the program with the appropriate exit code. If the function
     returns ``True``, use
     :attr:`EXIT_CODE_BEHAVIOR_PRESENT<machetli.evaluator.EXIT_CODE_BEHAVIOR_PRESENT>`,
@@ -71,10 +72,10 @@ def run_evaluator(evaluate):
 
     This function is meant to be used as the main function of an evaluator
     script. Instead of a path to the state, the command line arguments can also
-    be paths to a SAS\ :sup:`+` file. This is meant for testing and debugging
-    the evaluator directly on SAS\ :sup:`+` input.
+    be paths to a SAS :sup:`+` file. This is meant for testing and debugging
+    the evaluator directly on SAS :sup:`+` input.
 
-    :param evaluate: is a function taking the filename of a SAS\ :sup:`+` file as
+    :param evaluate: is a function taking the filename of a SAS :sup:`+` file as
         input and returning ``True`` if the specified behavior occurs for the
         given instance, and ``False`` if it doesn't. Other ways of exiting the
         function (exceptions, ``sys.exit`` with exit codes other than
@@ -127,7 +128,7 @@ def _read_task(sas_file : Path) -> SASTask:
     return sas_task
 
 
-def _read_variables(lines, num_vars):
+def _read_variables(lines: Iterator[Any], num_vars: int) -> SASVariables:
     axiom_layers = []
     ranges = []
     value_name_lists = []
@@ -145,7 +146,7 @@ def _read_variables(lines, num_vars):
     return SASVariables(ranges, axiom_layers, value_name_lists)
 
 
-def _read_mutexes(lines, num_mutexes):
+def _read_mutexes(lines: Iterator[Any], num_mutexes: int) -> List[Any]:
     mutexes = []
     for _ in range(num_mutexes):
         assert next(lines) == "begin_mutex_group"
@@ -159,7 +160,7 @@ def _read_mutexes(lines, num_mutexes):
     return mutexes
 
 
-def _read_init_state(lines, num_vars):
+def _read_init_state(lines: Iterator[Any], num_vars: int) -> SASInit:
     init = []
     assert next(lines) == "begin_state"
     for _ in range(num_vars):
@@ -169,7 +170,7 @@ def _read_init_state(lines, num_vars):
     return SASInit(init)
 
 
-def _read_goal(lines):
+def _read_goal(lines: Iterator[Any]) -> SASGoal:
     assert next(lines) == "begin_goal"
     num_pairs = int(next(lines))
     pairs = []
@@ -180,7 +181,7 @@ def _read_goal(lines):
     return SASGoal(pairs)
 
 
-def _read_operators(lines, num_operators):
+def _read_operators(lines: Iterator[Any], num_operators: int) -> List[SASOperator]:
     operators = []
     for _ in range(num_operators):
         assert next(lines) == "begin_operator"
@@ -208,7 +209,7 @@ def _read_operators(lines, num_operators):
     return operators
 
 
-def _read_axioms(lines, num_axioms):
+def _read_axioms(lines: Iterator[Any], num_axioms: int) -> List[Any]:
     axioms = []
     for _ in range(num_axioms):
         assert next(lines) == "begin_rule"

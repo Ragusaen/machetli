@@ -16,7 +16,7 @@ with open("README.rst", "r", encoding="utf-8") as fh:
 
 setup(
     name="machetli",
-    version="0.9",
+    version="0.9.1337",
     description="Locate bugs in your program",
     long_description=long_description,
     long_description_content_type="text/x-rst",

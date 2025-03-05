@@ -2,10 +2,12 @@ import copy
 import itertools
 import random
 
+from machetli.sas import write_file
 from machetli.sas.constants import KEY_IN_STATE
 from machetli.sas.sas_tasks import SASTask, SASMutexGroup, SASInit, SASGoal, \
     SASOperator, SASAxiom
 from machetli.successors import Successor, SuccessorGenerator, RNG
+from typing import Dict
 
 
 class RemoveOperators(SuccessorGenerator):
@@ -13,7 +15,7 @@ class RemoveOperators(SuccessorGenerator):
     For each operator, generate a successor where this operator is
     removed. The order of the successors is randomized.
     """
-    def get_successors(self, state):
+    def get_successors(self, state: Dict[str, SASTask]):
         task = state[KEY_IN_STATE]
         operator_names = [op.name for op in task.operators]
         RNG.shuffle(operator_names)
@@ -24,7 +26,7 @@ class RemoveOperators(SuccessorGenerator):
             yield Successor(child_state,
                             f"Removed operator '{name}'. Remaining operators: {len(operator_names) - 1}")
 
-    def transform(self, task, op_name):
+    def transform(self, task: SASTask, op_name: str) -> SASTask:
         new_operators = [op for op in task.operators if not op.name == op_name]
 
         return SASTask(task.variables, task.mutexes, task.init, task.goal,
@@ -39,7 +41,7 @@ class RemoveVariables(SuccessorGenerator):
     condition, effect fact, or goal. The order of the successors is
     randomized.
     """
-    def get_successors(self, state):
+    def get_successors(self, state: Dict[str, SASTask]):
         task = state[KEY_IN_STATE]
         variables = [var for var in range(len(task.variables.axiom_layers))]
         RNG.shuffle(variables)
@@ -50,7 +52,7 @@ class RemoveVariables(SuccessorGenerator):
             yield Successor(child_state,
                             f"Removed a variable. Remaining variables: {len(variables) - 1}")
 
-    def transform(self, task, var):
+    def transform(self, task: SASTask, var: int) -> SASTask:
         # remove var attributes from variables object
         new_variables = task.variables
         del new_variables.axiom_layers[var]
@@ -147,7 +149,7 @@ class RemovePrePosts(SuccessorGenerator):
     the order of precondition/effect pairs of the same operator, but all
     successors stemming from the same operator follow consecutively.
     """
-    def get_successors(self, state):
+    def get_successors(self, state: Dict[str, SASTask]):
         task = state[KEY_IN_STATE]
         num_ops = len(task.operators)
         for op in RNG.sample(range(num_ops), num_ops):
@@ -169,7 +171,7 @@ class SetUnspecifiedPreconditions(SuccessorGenerator):
     operator, but all successors stemming from the same operator follow
     consecutively.
     """
-    def get_successors(self, state):
+    def get_successors(self, state: Dict[str, SASTask]):
         task = state[KEY_IN_STATE]
         num_ops = len(task.operators)
         for op in RNG.sample(range(num_ops), num_ops):
@@ -195,7 +197,7 @@ class MergeOperators(SuccessorGenerator):
     executing the two operators in sequence. Cases where this is not
     possible (e.g., with conflicting prevail conditions) are skipped.
     """
-    def get_successors(self, state):
+    def get_successors(self, state: Dict[str, SASTask]):
         task = state[KEY_IN_STATE]
         for op1, op2 in itertools.permutations(task.operators, 2):
             child_state = copy.deepcopy(state)
@@ -206,7 +208,7 @@ class MergeOperators(SuccessorGenerator):
                                 f"Merged operators '{op1.name}' and '{op2.name}'. " +
                                 f"Remaining operators: {len(task.operators) - 1}")
 
-    def transform(self, task, op1, op2):
+    def transform(self, task: SASTask, op1: SASOperator, op2: SASOperator) -> SASTask:
         def combined_pre_post(op):
             combined_pre, combined_post = {}, {}
             for var, value in op.prevail:
@@ -260,10 +262,51 @@ class RemoveGoals(SuccessorGenerator):
     For each goal condition, generate a successor where this goal condition
     is removed. The order of the successors is randomized
     """
-    def get_successors(self, state):
+    def get_successors(self, state: Dict[str, SASTask]):
         task = state[KEY_IN_STATE]
         num_goals = len(task.goal.pairs)
         for goal_id in RNG.sample(range(num_goals), num_goals):
             child_state = copy.deepcopy(state)
             del child_state[KEY_IN_STATE].goal.pairs[goal_id]
             yield Successor(child_state, f"Removed a goal. Remaining goals: {num_goals - 1}")
+
+
+class RemoveVariableValues(SuccessorGenerator):
+    """
+    For each variable and each value of this variable, where this value is not a goal, initial state or does not occur in
+    any operator precondition, generate a successor where this value is removed from the variable. The order of the
+    successors is randomized.
+    """
+    def get_successors(self, state: Dict[str, SASTask]):
+        task = state[KEY_IN_STATE]
+        num_vars = len(task.variables.ranges)
+        for var in RNG.sample(range(num_vars), num_vars):
+            num_vals = task.variables.ranges[var]
+            for val in RNG.sample(range(num_vals), num_vals):
+                if (var, val) in task.goal.pairs:
+                    continue
+                if val == task.init.values[var]:
+                    continue
+                if any(any(op_var == var and (pre == val or any(pre == val for pre, post in conds)) for op_var, pre, post, conds in op.pre_post) for op in task.operators):
+                    continue
+                print("Trying to remove ", var, val)
+                child_state = copy.deepcopy(state)
+                pre_child_task = child_state[KEY_IN_STATE]
+                child_state[KEY_IN_STATE] = self.transform(pre_child_task, var, val)
+                write_file(child_state, f"test_{var}_{val}.sas")
+                yield Successor(child_state, f"Removed value {val} from variable {var}. Remaining values: {num_vals - 1}")
+
+    def transform(self, state: SASTask, var: int, value: int):
+        assert(len(state.axioms) == 0)
+        old_to_new_map = {i: i if i < value else i - 1 for i in range(state.variables.ranges[var]) if i != value}
+        state.variables.ranges[var] -= 1
+        state.variables.value_names[var].pop(value)
+        state.init.values[var] = old_to_new_map[state.init.values[var]]
+        state.goal.pairs = [(g_var, old_to_new_map[val]) if g_var == var else (g_var, val) for g_var, val in state.goal.pairs ]
+        for op in state.operators:
+            op.prevail = [(op_var, old_to_new_map[val]) for op_var, val in op.prevail if op_var == var]
+            op.pre_post = [(op_var, old_to_new_map[pre], old_to_new_map[post], [(old_to_new_map[cond_var], old_to_new_map[cond_val]) for cond_var, cond_val in conds]) if op_var == var else (op_var, pre, post, conds) for op_var, pre, post, conds in op.pre_post]
+
+        return state
+
+
