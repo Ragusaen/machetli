@@ -136,12 +136,12 @@ class Environment:
     login and compute nodes.
     """
 
-    def __init__(self, batch_size=1, loglevel=logging.INFO):
+    def __init__(self, batch_size=1, loglevel=logging.INFO, exp_name: str | None = None):
         # TODO: this is accidentally doing what we want: in interactive python sessions
         # we don't have a script path and want to use the name of the current working directory
         # as the experiment name. This is what get_script_path returns, but this is coincidental.
         script_path = tools.get_script_path()
-        self.exp_name = script_path.stem
+        self.exp_name = script_path.stem if exp_name is None else exp_name
         self.eval_dir = Path(f"{self.exp_name}-eval")
         if re.search(r"\s+", str(self.eval_dir)):
             logging.critical("The script path must not contain any whitespace characters.")
@@ -221,6 +221,9 @@ class LocalEnvironment(Environment):
 
     See :class:`Environment` for inherited options.
     """
+    def __init__(self, **kwargs):
+        Environment.__init__(self, **kwargs)
+
     def _run_job(self, job, on_task_completed):
         for task in job.tasks:
             if task.status == EvaluationTask.CANCELED:
