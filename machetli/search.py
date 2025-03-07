@@ -1,12 +1,11 @@
 import logging
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 from machetli.environments import LocalEnvironment, EvaluationTask
 from machetli.errors import SubmissionError, PollingError
-from machetli.successors import SuccessorGenerator, make_single_successor_generator
+from machetli.successors import SuccessorGenerator, make_single_successor_generator, Successor
 from machetli.tools import batched, configure_logging
 from machetli.sas.sas_tasks import SASTask
-from pathlib._local import PosixPath
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 
@@ -96,6 +95,29 @@ def search(initial_state: Dict[str, SASTask], successor_generator: List[Successo
     if environment is None:
         environment = LocalEnvironment()
     configure_logging(environment.loglevel)
+
+    # Verify that initial state has property
+    environment.start_new_iteration()
+    tasks = environment.run(evaluator_path, [Successor(initial_state, "Initial state")], lambda _: None)
+    for task in tasks:
+        if task.status == EvaluationTask.DONE_AND_BEHAVIOR_PRESENT:
+            logging.info("Initial has property.")
+        elif task.status == EvaluationTask.DONE_AND_BEHAVIOR_NOT_PRESENT:
+            logging.critical("Initial state does not have property!")
+            raise ValueError("Initial state does not have the evaluated property.")
+        elif task.status == EvaluationTask.OUT_OF_RESOURCES:
+            logging.warning("Initial state evaluation ran out of resources! Cannot verify if it has the property.")
+            if deterministic:
+                raise ValueError("Initial state evaluation ran out of resources! Cannot verify if it has the evaluated property.")
+        elif task.status == EvaluationTask.CRITICAL:
+            if deterministic:
+                logging.critical("Initial state evaluation failed with a critical error! Cannot verify if it has the property.")
+                raise ValueError("Initial state evaluation failed with a critical error! Cannot verify if it has the evaluated property.")
+        elif task.status == EvaluationTask.CANCELED:
+            logging.warning("Initial state evaluation was canceled. Cannot verify if it has the property.")
+        else:
+            raise ValueError(f"Unexpected task status: '{task.status}'.")
+
     successor_generator = make_single_successor_generator(successor_generator)
 
     logging.info("Starting search ...")
