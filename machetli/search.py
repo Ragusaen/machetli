@@ -110,8 +110,8 @@ def search(initial_state: Dict[str, SASTask], successor_generator: List[Successo
             if deterministic:
                 raise ValueError("Initial state evaluation ran out of resources! Cannot verify if it has the evaluated property.")
         elif task.status == EvaluationTask.CRITICAL:
+            logging.critical( "Initial state evaluation failed with a critical error! Cannot verify if it has the property.")
             if deterministic:
-                logging.critical("Initial state evaluation failed with a critical error! Cannot verify if it has the property.")
                 raise ValueError("Initial state evaluation failed with a critical error! Cannot verify if it has the evaluated property.")
         elif task.status == EvaluationTask.CANCELED:
             logging.warning("Initial state evaluation was canceled. Cannot verify if it has the property.")
