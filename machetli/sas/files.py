@@ -1,3 +1,4 @@
+import copy
 import tempfile
 import contextlib
 import logging
@@ -234,3 +235,24 @@ def write_file(state: dict, filename: str):
     """
     with open(filename, "w") as file:
         state[KEY_IN_STATE].output(file)
+
+
+def renamed_sas(sas_task: SASTask):
+    """
+    Rename all variables, facts and operator in the SAS task. Facts for variable i will be named Ai Bi Ci ..., and operators
+    will be named a b c ...
+    """
+    new_task = copy.deepcopy(sas_task)
+    # Alphabet
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+    # Rename variables
+    for i, size in enumerate(new_task.variables.ranges):
+        for j in range(size):
+            new_task.variables.value_names[i][j] = f"{alphabet[j].upper()}{i}"
+
+    # Rename operators
+    for i in range(len(sas_task.operators)):
+        new_task.operators[i].name = f"({alphabet[i]})"
+
+    return new_task

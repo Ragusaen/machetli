@@ -2,6 +2,7 @@
 This module is derived from ``tools.py`` of Lab (<https://lab.readthedocs.io>).
 Functions and classes that are not needed for this project were removed.
 """
+import copy
 from contextlib import contextmanager
 import itertools
 import logging
@@ -12,7 +13,6 @@ import resource
 import shutil
 import subprocess
 import sys
-
 
 DEFAULT_ENCODING = "utf-8"
 
@@ -276,3 +276,4 @@ def run(command, *, cpu_time_limit=None, memory_limit=None,
         proc.stderr = _read(stderr_path)
 
     return proc
+
